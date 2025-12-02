@@ -42,7 +42,6 @@ if page == "Goal Setting Evaluation":
         current_scenario = scenario_options[selected_option]
         scenario_id = current_scenario['id']
 
-        # CHANGE: Removed the "Todo" warning. Only shows Success if done.
         if scenario_id in st.session_state.goal_progress:
             st.success("✅ You have completed this case.")
 
@@ -88,10 +87,33 @@ elif page == "Judgment Call Simulation":
             st.session_state.messages = []
             st.session_state.current_persona = selected_persona_name
             st.session_state.chat_session = None
+            # Clear the context blurb so it regenerates for the new student
+            if "context_blurb" in st.session_state:
+                del st.session_state.context_blurb
         
-        # Initialize Chat Model
+        # --- NEW LOGIC START: Generate Context Blurb ---
+        # We need the model initialized to generate the blurb
+        model_2 = genai.GenerativeModel(os.getenv("GEMINI_MODEL_2"))
+
+        # Generate the blurb only if it doesn't exist yet for this session
+        if "context_blurb" not in st.session_state:
+            with st.spinner("Setting the scene..."):
+                context_prompt = f"""
+                Based on this student persona: "{selected_persona['description']}"
+                
+                Please write a 2-sentence context introduction for the tutor. 
+                Include the student's approximate age/grade and the specific subject or assignment they are working on right now.
+                Do not include dialogue, just the setting.
+                """
+                context_response = model_2.generate_content(context_prompt)
+                st.session_state.context_blurb = context_response.text
+
+        # Display the generated context
+        st.info(f"**Simulation Context:** {st.session_state.context_blurb}")
+        # --- NEW LOGIC END ---
+
+        # Initialize Chat Session (Roleplay)
         if st.session_state.chat_session is None:
-            model_2 = genai.GenerativeModel(os.getenv("GEMINI_MODEL_2"))
             
             # System instructions
             history = [
@@ -100,9 +122,8 @@ elif page == "Judgment Call Simulation":
             ]
             st.session_state.chat_session = model_2.start_chat(history=history)
             
-            # CHANGE: Generate initial greeting from the Student (AI)
+            # Generate initial greeting from the Student (AI)
             try:
-                # We ask the model to start, but we don't display this prompt to the user
                 initial_response = st.session_state.chat_session.send_message("Start the conversation now with a short opening sentence as the student.")
                 st.session_state.messages.append({"role": "assistant", "content": initial_response.text})
             except Exception as e:
