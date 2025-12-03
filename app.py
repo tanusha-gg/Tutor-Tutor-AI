@@ -1,9 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import os
-import time
 from dotenv import load_dotenv
-from google.api_core.exceptions import ResourceExhausted
 
 # Import your existing modules
 import data_manager
@@ -25,25 +23,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# --- RETRY LOGIC HELPER ---
-def safe_api_call(func, *args, **kwargs):
-    """
-    Wraps API calls with a retry mechanism for 429 errors.
-    """
-    retries = 3
-    for attempt in range(retries):
-        try:
-            return func(*args, **kwargs)
-        except ResourceExhausted:
-            wait_time = 4 * (attempt + 1)  # Wait 4s, 8s, 12s
-            st.toast(f"⏳ Rate limit hit. Retrying in {wait_time} seconds...", icon="⚠️")
-            time.sleep(wait_time)
-        except Exception as e:
-            st.error(f"An unexpected error occurred: {e}")
-            raise e
-    st.error("❌ The AI is currently overloaded. Please wait a minute and try again.")
-    return None
 
 # --- INITIALIZE SESSION STATE ---
 if "goal_progress" not in st.session_state:
@@ -83,13 +62,10 @@ def run_goal_setting_mode():
                 st.error("Please enter a response first.")
             else:
                 with st.spinner("AI is grading your response..."):
-                    # WRAPPED CALL: goal_setting.evaluate_tutor_response
-                    feedback = safe_api_call(goal_setting.evaluate_tutor_response, tutor_response, current_scenario)
-                
-                if feedback:
-                    st.session_state.goal_progress[scenario_id] = feedback
-                    st.success("Evaluation Complete! Progress Saved.")
-                    st.markdown(f"### Feedback:\n{feedback}")
+                    feedback = goal_setting.evaluate_tutor_response(tutor_response, current_scenario)
+                st.session_state.goal_progress[scenario_id] = feedback
+                st.success("Evaluation Complete! Progress Saved.")
+                st.markdown(f"### Feedback:\n{feedback}")
 
 def run_simulation_mode():
     st.subheader("🗣️ Judgment Call Simulation")
@@ -119,13 +95,10 @@ def run_simulation_mode():
                 Please write a 2-sentence context introduction for the tutor. 
                 Include the student's approximate age/grade and the specific subject.
                 """
-                # WRAPPED CALL: model.generate_content
-                context_response = safe_api_call(model_2.generate_content, context_prompt)
-                if context_response:
-                    st.session_state.context_blurb = context_response.text
+                context_response = model_2.generate_content(context_prompt)
+                st.session_state.context_blurb = context_response.text
 
-        if "context_blurb" in st.session_state:
-            st.info(f"**Simulation Context:** {st.session_state.context_blurb}")
+        st.info(f"**Simulation Context:** {st.session_state.context_blurb}")
 
         # Initialize Chat Session
         if st.session_state.chat_session is None:
@@ -135,10 +108,8 @@ def run_simulation_mode():
             ]
             st.session_state.chat_session = model_2.start_chat(history=history)
             try:
-                # WRAPPED CALL: chat.send_message
-                initial_response = safe_api_call(st.session_state.chat_session.send_message, "Start conversation now.")
-                if initial_response:
-                    st.session_state.messages.append({"role": "assistant", "content": initial_response.text})
+                initial_response = st.session_state.chat_session.send_message("Start conversation now.")
+                st.session_state.messages.append({"role": "assistant", "content": initial_response.text})
             except Exception as e:
                 st.error(f"Error starting chat: {e}")
 
@@ -147,4 +118,259 @@ def run_simulation_mode():
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # Chat
+        # Chat Input
+        if prompt := st.chat_input("Type your response here..."):
+            with st.chat_message("user"):
+                st.markdown(prompt)
+            st.session_state.messages.append({"role": "user", "content": prompt})
+
+            try:
+                response = st.session_state.chat_session.send_message(prompt)
+                ai_reply = response.text
+                with st.chat_message("assistant"):
+                    st.markdown(ai_reply)
+                st.session_state.messages.append({"role": "assistant", "content": ai_reply})
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+        st.divider()
+        if st.button("End Simulation & Get Feedback"):
+            if len(st.session_state.messages) < 2:
+                st.warning("Please have a conversation before generating feedback.")
+            else:
+                conversation_log = [f"{msg['role'].title()}: {msg['content']}" for msg in st.session_state.messages]
+                with st.spinner("Analyzing conversation dynamics..."):
+                    training_plan = feedback_training.generate_training_plan(conversation_log)
+                
+                st.session_state.sim_progress.add(selected_persona_name)
+                st.markdown("### 📝 Personalized Training Plan")
+                st.write(training_plan)
+
+def run_progress_checklist():
+    st.subheader("✅ Training Progress")
+    data = data_manager.load_data()
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### Goal Setting Scenarios")
+        if data:
+            all_scenarios = data['goal_setting_scenarios']
+            completed_ids = st.session_state.goal_progress.keys()
+            progress_val = len(completed_ids) / len(all_scenarios)
+            st.progress(progress_val)
+            st.write(f"**{len(completed_ids)} / {len(all_scenarios)} Completed**")
+            
+            for s in all_scenarios:
+                icon = "✅" if s['id'] in completed_ids else "⬜"
+                st.write(f"{icon} Case {s['id']}")
+
+    with col2:
+        st.markdown("#### Judgment Simulations")
+        if data:
+            all_personas = [p['name'] for p in data['judgment_personas']]
+            completed_sims = st.session_state.sim_progress
+            progress_val_sim = len(completed_sims) / len(all_personas)
+            st.progress(progress_val_sim)
+            st.write(f"**{len(completed_sims)} / {len(all_personas)} Completed**")
+            
+            for name in all_personas:
+                icon = "✅" if name in completed_sims else "⬜"
+                st.write(f"{icon} {name}")
+
+
+# --- MAIN NAVIGATION ---
+st.sidebar.image("https://cdn-icons-png.flaticon.com/512/4762/4762311.png", width=100)
+st.sidebar.title("Tutor Tutor AI")
+st.sidebar.markdown("---")
+page = st.sidebar.radio("Navigate:", ["Home", "Methodology & Criteria", "Technical Architecture", "Future Roadmap", "Try the Prototype"])
+
+# ==========================================
+# PAGE 1: HOME (Problem & Solution)
+# ==========================================
+if page == "Home":
+    st.title("Tutor Tutor AI")
+    st.subheader("An AI Tutor for Tutors")
+    
+    st.markdown("---")
+    
+    # PROBLEM SECTION (Slide 2)
+    st.header("The Problem")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.image("https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974&auto=format&fit=crop")
+    
+    with col2:
+        st.warning("Tutoring is a **$20B dollar industry**.")
+        st.markdown("""
+        Yet, non-professional educators are often vetted based solely on **content knowledge**, not on **teaching ability**.
+        
+        * Most tutors lack the pedagogical skills needed to be good educators.
+        * **"There is a difference between knowing Calculus and being able to teach it."**
+        """)
+    
+    st.markdown("---")
+    
+    # SOLUTION SECTION (Slide 4)
+    st.header("The Solution")
+    st.info("Tutor Tutor AI provides an **accessible and scalable** tutor training solution.")
+    
+    colA, colB, colC = st.columns(3)
+    
+    with colA:
+        st.markdown("### 🧠 Active Learning")
+        st.write("Realistic, interactive scenario-based simulations.")
+    
+    with colB:
+        st.markdown("### ⚖️ Diverse Assessment")
+        st.write("Considers ethics, communication skills, and soft skills like active listening and emotional awareness.")
+        
+    with colC:
+        st.markdown("### 📝 Tailored Feedback")
+        st.write("Provides feedback and recommendations unique to each tutor (vs. boring informative readings or static scores).")
+
+    st.markdown("---")
+    if st.button("Start Training Now 🚀"):
+         st.info("👈 Click 'Try the Prototype' in the sidebar to begin simulations!")
+
+# ==========================================
+# PAGE 2: METHODOLOGY (Detailed Criteria)
+# ==========================================
+elif page == "Methodology & Criteria":
+    st.title("Training Structure & Evaluation")
+    
+    st.markdown("""
+    Our AI transforms subjective language into objective, trainable science. 
+    Simulations are instructed to have **high psychological fidelity**, mirroring real classroom dynamics.
+    """)
+    
+    tab1, tab2 = st.tabs(["Goal Setting / Conflict Resolution", "Interpersonal Simulation"])
+    
+    # SLIDES 6 & 7 CONTENT
+    with tab1:
+        st.subheader("Conflict Resolution Criteria")
+        st.markdown("We evaluate how tutors balance conflicting requests from parents and students based on these weighted metrics:")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("**1. Pedagogical Integrity (25%)**")
+            st.caption("Does the solution result in the student doing cognitive work and learning?")
+            
+            st.markdown("**2. Compromise (25%)**")
+            st.caption("Does the response prioritize solutions with compromise? If not, does the tutor explain why to maintain trust?")
+            
+            st.markdown("**3. Alignment (20%)**")
+            st.caption("Are both concerns addressed without caving to unethical demands or ignoring the conflict?")
+
+        with c2:
+            st.markdown("**4. Empathy (10%)**")
+            st.caption("Does the response avoid judgment and demonstrate emotional understanding?")
+            
+            st.markdown("**5. Tone (10%)**")
+            st.caption("Does the tone de-escalate the situation? Avoids defensiveness or hostility.")
+            
+            st.markdown("**6. Communication (10%)**")
+            st.caption("Is the response clear, specific, and actionable?")
+
+    # SLIDES 8 & 9 CONTENT
+    with tab2:
+        st.subheader("Simulation Criteria")
+        st.markdown("During the live chat simulation, the AI monitors the tutor for the following soft skills:")
+        
+        st.success("**Core Competencies:**")
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            st.markdown("- **Emotional Recognition:** Acknowledging the student's state.")
+            st.markdown("- **Expression of Genuine Care:** Valuing the student as a person.")
+            st.markdown("- **Empathy/Perspective-Taking:** Seeing the student's view.")
+            st.markdown("- **Non-judgmental Stance:** Avoiding labeling or assumptions.")
+            st.markdown("- **Pause and Reflection:** Regulating own emotions before acting.")
+            
+        with col_b:
+            st.markdown("- **Collaborative Solution Language:** Inviting the student to solve the problem.")
+            st.markdown("- **Noticing and Appreciation:** Attending to strengths.")
+            st.markdown("- **Seeking to Understand:** Asking before telling.")
+            st.markdown("- **Equity Awareness:** Awareness of lived experiences.")
+
+# ==========================================
+# PAGE 3: TECHNICAL ARCHITECTURE
+# ==========================================
+elif page == "Technical Architecture":
+    st.title("Technical Foundation")
+    st.markdown("How Tutor Tutor AI is built.")
+        
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.markdown("### 🖥️ Frontend")
+        st.write("**Streamlit Web Application**")
+        st.caption("Accessible, user-friendly interface for tutors.")
+        
+    with col2:
+        st.code("import streamlit as st", language="python")
+
+    st.divider()
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown("### 🧠 AI Engine")
+        st.write("**Google Gemini**")
+        st.caption("Acts as the Simulated Student & The Expert Evaluator.")
+    with col2:
+        st.code("""
+import google.generativeai as genai
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        """, language="python")
+
+    st.divider()
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown("### 📂 Data & Logic")
+        st.write("**Python Modules & JSON**")
+        st.caption("Scenario library stored in JSON; separate logic modules for maintenance.")
+    with col2:
+        st.code("""
+import data_manager
+import goal_setting
+import feedback_training
+        """, language="python")
+
+# ==========================================
+# PAGE 4: FUTURE ROADMAP
+# ==========================================
+elif page == "Future Roadmap":
+    st.title("Next Steps")
+    st.markdown("Our roadmap to make high-level training scalable and accessible.")
+    
+    st.info("### 1. Integrate Checklist & Progress Tracking")
+    st.write("Ensure tutors can visualize their growth over time.")
+
+    st.info("### 2. Iterative Feedback Loops")
+    st.write("Have each simulation iteration incorporate feedback from prior sessions to increase difficulty.")
+
+    st.info("### 3. Auto-Generate Cases")
+    st.write("Potentially auto-generate cases and scenarios to specifically target user weaknesses detected in previous sessions.")
+
+    st.info("### 4. UI/UX Improvements")
+    st.write("Improve clarity of instructions and user interface.")
+
+# ==========================================
+# PAGE 5: TRY THE PROTOTYPE
+# ==========================================
+elif page == "Try the Prototype":
+    st.title("🖥️ Live Prototype")
+    st.markdown("Select a module below to test the AI assessment capabilities.")
+    
+    tab1, tab2, tab3 = st.tabs(["Goal Setting Evaluation", "Judgment Simulation", "Progress Checklist"])
+    
+    with tab1:
+        run_goal_setting_mode()
+        
+    with tab2:
+        run_simulation_mode()
+        
+    with tab3:
+        run_progress_checklist()
