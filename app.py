@@ -32,8 +32,6 @@ if "sim_progress" not in st.session_state:
     st.session_state.sim_progress = set()
 
 # --- HELPER FUNCTIONS FOR PROTOTYPE LOGIC ---
-# These functions wrap your previous code so we can call them cleanly in the new layout
-
 def run_goal_setting_mode():
     st.subheader("🎯 Goal Setting Evaluation")
     st.markdown("Practice balancing conflicting requests from parents and students.")
@@ -182,89 +180,190 @@ def run_progress_checklist():
 
 
 # --- MAIN NAVIGATION ---
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/4762/4762311.png", width=100) # Placeholder Logo
+st.sidebar.image("https://cdn-icons-png.flaticon.com/512/4762/4762311.png", width=100)
 st.sidebar.title("Tutor Tutor AI")
 st.sidebar.markdown("---")
-page = st.sidebar.radio("Navigate:", ["Home", "About the Project", "Try the Prototype", "Contact Us"])
+page = st.sidebar.radio("Navigate:", ["Home", "Methodology & Criteria", "Technical Architecture", "Future Roadmap", "Try the Prototype"])
 
 # ==========================================
-# PAGE 1: HOME (Marketing Hook)
+# PAGE 1: HOME (Problem & Solution)
 # ==========================================
 if page == "Home":
-    # Hero Section
-    st.title("Making Tutors Better, Faster.")
-    st.markdown("### An AI-based platform for evaluating and training tutors with a focus on pedagogical and interpersonal skills.")
-    
-    st.image("https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=2070&auto=format&fit=crop", caption="Empowering the next generation of educators.")
+    st.title("Tutor Tutor AI")
+    st.subheader("An AI Tutor for Tutors")
     
     st.markdown("---")
     
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.header("💡 Identify")
-        st.write("Assess soft skills beyond subject expertise.")
-    with col2:
-        st.header("🤝 Engage")
-        st.write("Simulate realistic student interactions.")
-    with col3:
-        st.header("📈 Grow")
-        st.write("Receive actionable feedback to improve teaching.")
-        
-    st.markdown("---")
-    if st.button("Try the Prototype Now 🚀"):
-        # Note: Streamlit buttons can't easily force navigation without extra logic, 
-        # so we usually just direct them to the sidebar
-        st.info("👈 Click 'Try the Prototype' in the sidebar to start!")
-
-# ==========================================
-# PAGE 2: ABOUT THE PROJECT (Proposal Content)
-# ==========================================
-elif page == "About the Project":
-    st.title("Why Tutor Tutor AI?")
-    
-    # PROBLEM STATEMENT
-    st.subheader("⚠️ The Problem")
-    st.markdown("""
-    The tutoring market is growing rapidly, yet **skills required for tutoring extend beyond content knowledge.** Many tutors (especially peer tutors) have little formal training in pedagogy. While they have "social congruence" with students, they often lack critical soft skills:
-    * **Pedagogical competencies** (How to teach, not just what to teach)
-    * **Social-Emotional Learning (SEL)**
-    * **Interpersonal awareness**
-    
-    *Current platforms only vet for transcripts, leaving a gap in client-oriented training.*
-    """)
-    
-    st.divider()
-
-    # PROPOSED SOLUTION
-    st.subheader("🛠️ The Solution")
-    st.markdown("""
-    We are developing a scalable AI-based assessment and training program providing realistic, scenario-based interactions.
-    
-    **Core Modules:**
-    1.  **Goal-Setting Evaluation:** Handling conflicting goals between parents and students.
-    2.  **Judgment Call Simulations:** "Interviewing" with an AI student to test empathy and adaptability.
-    3.  **AI Feedback & Training:** Automated, actionable feedback based on expert pedagogical frameworks.
-    """)
-    
-    # TARGET AUDIENCE
-    st.divider()
-    st.subheader("🎯 Target Audience")
+    # PROBLEM SECTION (Slide 2)
+    st.header("The Problem")
     col1, col2 = st.columns(2)
+    
     with col1:
-        st.markdown("#### For Tutors")
-        st.markdown("- Peer tutors (High school/College)\n- Adult independent tutors\n- Professionals seeking certification")
+        st.image("https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974&auto=format&fit=crop")
+    
     with col2:
-        st.markdown("#### For Platforms")
-        st.markdown("- Tutoring agencies (Varsity Tutors, etc.)\n- Schools launching peer-mentoring programs")
+        st.warning("Tutoring is a **$20B dollar industry**.")
+        st.markdown("""
+        Yet, non-professional educators are often vetted based solely on **content knowledge**, not on **teaching ability**.
+        
+        * Most tutors lack the pedagogical skills needed to be good educators.
+        * **"There is a difference between knowing Calculus and being able to teach it."**
+        """)
+    
+    st.markdown("---")
+    
+    # SOLUTION SECTION (Slide 4)
+    st.header("The Solution")
+    st.info("Tutor Tutor AI provides an **accessible and scalable** tutor training solution.")
+    
+    colA, colB, colC = st.columns(3)
+    
+    with colA:
+        st.markdown("### 🧠 Active Learning")
+        st.write("Realistic, interactive scenario-based simulations.")
+    
+    with colB:
+        st.markdown("### ⚖️ Diverse Assessment")
+        st.write("Considers ethics, communication skills, and soft skills like active listening and emotional awareness.")
+        
+    with colC:
+        st.markdown("### 📝 Tailored Feedback")
+        st.write("Provides feedback and recommendations unique to each tutor (vs. boring informative readings or static scores).")
+
+    st.markdown("---")
+    if st.button("Start Training Now 🚀"):
+         st.info("👈 Click 'Try the Prototype' in the sidebar to begin simulations!")
 
 # ==========================================
-# PAGE 3: TRY THE PROTOTYPE (The Tool)
+# PAGE 2: METHODOLOGY (Detailed Criteria)
+# ==========================================
+elif page == "Methodology & Criteria":
+    st.title("Training Structure & Evaluation")
+    
+    st.markdown("""
+    Our AI transforms subjective language into objective, trainable science. 
+    Simulations are instructed to have **high psychological fidelity**, mirroring real classroom dynamics.
+    """)
+    
+    tab1, tab2 = st.tabs(["Goal Setting / Conflict Resolution", "Interpersonal Simulation"])
+    
+    # SLIDES 6 & 7 CONTENT
+    with tab1:
+        st.subheader("Conflict Resolution Criteria")
+        st.markdown("We evaluate how tutors balance conflicting requests from parents and students based on these weighted metrics:")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("**1. Pedagogical Integrity (25%)**")
+            st.caption("Does the solution result in the student doing cognitive work and learning?")
+            
+            st.markdown("**2. Compromise (25%)**")
+            st.caption("Does the response prioritize solutions with compromise? If not, does the tutor explain why to maintain trust?")
+            
+            st.markdown("**3. Alignment (20%)**")
+            st.caption("Are both concerns addressed without caving to unethical demands or ignoring the conflict?")
+
+        with c2:
+            st.markdown("**4. Empathy (10%)**")
+            st.caption("Does the response avoid judgment and demonstrate emotional understanding?")
+            
+            st.markdown("**5. Tone (10%)**")
+            st.caption("Does the tone de-escalate the situation? Avoids defensiveness or hostility.")
+            
+            st.markdown("**6. Communication (10%)**")
+            st.caption("Is the response clear, specific, and actionable?")
+
+    # SLIDES 8 & 9 CONTENT
+    with tab2:
+        st.subheader("Simulation Criteria")
+        st.markdown("During the live chat simulation, the AI monitors the tutor for the following soft skills:")
+        
+        st.success("**Core Competencies:**")
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            st.markdown("- **Emotional Recognition:** Acknowledging the student's state.")
+            st.markdown("- **Expression of Genuine Care:** Valuing the student as a person.")
+            st.markdown("- **Empathy/Perspective-Taking:** Seeing the student's view.")
+            st.markdown("- **Non-judgmental Stance:** Avoiding labeling or assumptions.")
+            st.markdown("- **Pause and Reflection:** Regulating own emotions before acting.")
+            
+        with col_b:
+            st.markdown("- **Collaborative Solution Language:** Inviting the student to solve the problem.")
+            st.markdown("- **Noticing and Appreciation:** Attending to strengths.")
+            st.markdown("- **Seeking to Understand:** Asking before telling.")
+            st.markdown("- **Equity Awareness:** Awareness of lived experiences.")
+
+# ==========================================
+# PAGE 3: TECHNICAL ARCHITECTURE
+# ==========================================
+elif page == "Technical Architecture":
+    st.title("Technical Foundation")
+    st.markdown("How Tutor Tutor AI is built.")
+        
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.markdown("### 🖥️ Frontend")
+        st.write("**Streamlit Web Application**")
+        st.caption("Accessible, user-friendly interface for tutors.")
+        
+    with col2:
+        st.code("import streamlit as st", language="python")
+
+    st.divider()
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown("### 🧠 AI Engine")
+        st.write("**Google Gemini**")
+        st.caption("Acts as the Simulated Student & The Expert Evaluator.")
+    with col2:
+        st.code("""
+import google.generativeai as genai
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        """, language="python")
+
+    st.divider()
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown("### 📂 Data & Logic")
+        st.write("**Python Modules & JSON**")
+        st.caption("Scenario library stored in JSON; separate logic modules for maintenance.")
+    with col2:
+        st.code("""
+import data_manager
+import goal_setting
+import feedback_training
+        """, language="python")
+
+# ==========================================
+# PAGE 4: FUTURE ROADMAP
+# ==========================================
+elif page == "Future Roadmap":
+    st.title("Next Steps")
+    st.markdown("Our roadmap to make high-level training scalable and accessible.")
+    
+    st.info("### 1. Integrate Checklist & Progress Tracking")
+    st.write("Ensure tutors can visualize their growth over time.")
+
+    st.info("### 2. Iterative Feedback Loops")
+    st.write("Have each simulation iteration incorporate feedback from prior sessions to increase difficulty.")
+
+    st.info("### 3. Auto-Generate Cases")
+    st.write("Potentially auto-generate cases and scenarios to specifically target user weaknesses detected in previous sessions.")
+
+    st.info("### 4. UI/UX Improvements")
+    st.write("Improve clarity of instructions and user interface.")
+
+# ==========================================
+# PAGE 5: TRY THE PROTOTYPE
 # ==========================================
 elif page == "Try the Prototype":
     st.title("🖥️ Live Prototype")
     st.markdown("Select a module below to test the AI assessment capabilities.")
     
-    # Tabs to organize the tool functions cleanly
     tab1, tab2, tab3 = st.tabs(["Goal Setting Evaluation", "Judgment Simulation", "Progress Checklist"])
     
     with tab1:
@@ -275,22 +374,3 @@ elif page == "Try the Prototype":
         
     with tab3:
         run_progress_checklist()
-
-# ==========================================
-# PAGE 4: CONTACT / FEEDBACK
-# ==========================================
-elif page == "Contact Us":
-    st.title("📬 Get in Touch")
-    st.markdown("We are currently in the prototyping phase (Hackathon Project). We value your feedback!")
-    
-    with st.form("feedback_form"):
-        name = st.text_input("Name")
-        email = st.text_input("Email")
-        role = st.selectbox("I am a...", ["Student", "Tutor", "Parent", "Educator", "Developer", "Other"])
-        message = st.text_area("Feedback or Inquiries")
-        
-        submitted = st.form_submit_button("Submit Feedback")
-        
-        if submitted:
-            st.success(f"Thanks {name}! We've received your feedback.")
-            # In a real app, you would save this to a database here.
